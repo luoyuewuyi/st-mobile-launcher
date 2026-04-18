@@ -12,11 +12,12 @@ SUPERVISOR_PID_FILE="$APP_DIR/sillytavern.pid"
 CHILD_PID_FILE="$APP_DIR/sillytavern-child.pid"
 ACTIVE_LINK="$APP_DIR/current"
 SCRIPT_ACTIVE_LINK="$APP_DIR/current-script.sh"
+EXIT_FLAG_FILE="$APP_DIR/exit.flag"
 REPO_URL="https://github.com/SillyTavern/SillyTavern.git"
 SCRIPT_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/st-manager.sh"
 TAGS_CACHE="$CACHE_DIR/tags.txt"
 DEFAULT_PORT="8000"
-SCRIPT_VERSION="3"
+SCRIPT_VERSION="4"
 
 mkdir -p "$APP_DIR" "$VERSIONS_DIR" "$LOG_DIR" "$SCRIPT_DIR" "$CACHE_DIR"
 
@@ -340,7 +341,14 @@ change_port() {
   pause_wait
 }
 
+request_exit() {
+  : > "$EXIT_FLAG_FILE"
+  clear
+  exit 0
+}
+
 main_menu() {
+  rm -f "$EXIT_FLAG_FILE"
   while true; do
     header
     cat <<'EOF'
@@ -363,7 +371,7 @@ EOF
       4) update_script ;;
       5) show_log ;;
       6) change_port ;;
-      0) exit 0 ;;
+      0) request_exit ;;
       *) echo "没有这个选项。"; pause_wait ;;
     esac
   done

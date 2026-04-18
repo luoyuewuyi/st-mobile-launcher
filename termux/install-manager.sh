@@ -7,9 +7,10 @@ BIN_DIR="$HOME_DIR/.local/bin"
 SCRIPT_DIR="$APP_DIR/scripts"
 SCRIPT_ACTIVE_LINK="$APP_DIR/current-script.sh"
 MANAGER_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/st-manager.sh"
-SHELL_RC="$HOME_DIR/.bashrc"
-AUTO_MARKER_BEGIN="# >>> st-terminal autostart >>>"
-AUTO_MARKER_END="# <<< st-terminal autostart <<<"
+BASH_RC="$HOME_DIR/.bashrc"
+BASH_PROFILE="$HOME_DIR/.bash_profile"
+PROFILE_FILE="$HOME_DIR/.profile"
+HOOK_LINE='command -v st-terminal >/dev/null 2>&1 && st-terminal'
 
 mkdir -p "$APP_DIR" "$BIN_DIR" "$SCRIPT_DIR"
 
@@ -33,9 +34,18 @@ sources_ok() {
   [ -s /data/data/com.termux/files/usr/etc/apt/sources.list ]
 }
 
+ensure_hook_line() {
+  local file="$1"
+  if [ -f "$file" ]; then
+    grep -Fq "$HOOK_LINE" "$file" || printf '\n%s\n' "$HOOK_LINE" >> "$file"
+  else
+    printf '%s\n' "$HOOK_LINE" > "$file"
+  fi
+}
+
 diagnose_env() {
   say "== 酒馆终端管理器：环境诊断 =="
-  say
+  say ""
 
   if ! apt_ok; then
     say "[诊断] 当前环境里没有 apt。"
@@ -63,7 +73,7 @@ diagnose_env() {
     say "[诊断] wget：不可用或未安装"
   fi
 
-  say
+  say ""
   return 0
 }
 
@@ -124,9 +134,9 @@ MANAGER_FILE="$VERSION_DIR/st-manager.sh"
 mkdir -p "$VERSION_DIR"
 
 if ! download_file "$MANAGER_URL" "$MANAGER_FILE"; then
-  say
+  say ""
   say "安装失败。"
-  say
+  say ""
   say "诊断结论："
   if ! sources_ok; then
     say "- 镜像源可能没有配置好"
@@ -137,7 +147,7 @@ if ! download_file "$MANAGER_URL" "$MANAGER_FILE"; then
   if ! wget_ok; then
     say "- wget 也不可用"
   fi
-  say
+  say ""
   say "建议："
   say "1. 先运行 termux-change-repo 选择镜像源"
   say "2. 再运行：apt update && apt full-upgrade -y"
@@ -151,42 +161,45 @@ ln -sfn "$MANAGER_FILE" "$SCRIPT_ACTIVE_LINK"
 say "[3/4] 创建启动命令..."
 cat > "$BIN_DIR/st-terminal" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
-if [ -L "$SCRIPT_ACTIVE_LINK" ]; then
-  exec "$SCRIPT_ACTIVE_LINK"
-else
-  exec "$MANAGER_FILE"
+APP_DIR="$APP_DIR"
+EXIT_FLAG_FILE="\$APP_DIR/exit.flag"
+
+if [ -n "\${ST_TERMINAL_RUNNING:-}" ]; then
+  if [ -L "$SCRIPT_ACTIVE_LINK" ]; then
+    exec "$SCRIPT_ACTIVE_LINK"
+  else
+    exec "$MANAGER_FILE"
+  fi
 fi
+
+export ST_TERMINAL_RUNNING=1
+
+while true; do
+  if [ -L "$SCRIPT_ACTIVE_LINK" ]; then
+    "$SCRIPT_ACTIVE_LINK"
+  else
+    "$MANAGER_FILE"
+  fi
+
+  if [ -f "\$EXIT_FLAG_FILE" ]; then
+    rm -f "\$EXIT_FLAG_FILE"
+    break
+  fi
+
+  sleep 1
+done
+
+unset ST_TERMINAL_RUNNING
 EOF
 chmod +x "$BIN_DIR/st-terminal"
 
 say "[4/4] 写入自动启动..."
-if [ -f "$SHELL_RC" ]; then
-  if ! grep -Fq "$AUTO_MARKER_BEGIN" "$SHELL_RC"; then
-    cat >> "$SHELL_RC" <<EOF
+ensure_hook_line "$BASH_RC"
+ensure_hook_line "$BASH_PROFILE"
+ensure_hook_line "$PROFILE_FILE"
 
-$AUTO_MARKER_BEGIN
-if [ -n "\$PS1" ] && [ -z "\${ST_TERMINAL_RUNNING:-}" ]; then
-  export ST_TERMINAL_RUNNING=1
-  st-terminal
-  unset ST_TERMINAL_RUNNING
-fi
-$AUTO_MARKER_END
-EOF
-  fi
-else
-  cat > "$SHELL_RC" <<EOF
-$AUTO_MARKER_BEGIN
-if [ -n "\$PS1" ] && [ -z "\${ST_TERMINAL_RUNNING:-}" ]; then
-  export ST_TERMINAL_RUNNING=1
-  st-terminal
-  unset ST_TERMINAL_RUNNING
-fi
-$AUTO_MARKER_END
-EOF
-fi
-
-say
+say ""
 say "安装完成。"
-say "正在进入菜单..."
+say "以后打开 Termux 会自动进入菜单。"
 sleep 1
 exec "$MANAGER_FILE"
