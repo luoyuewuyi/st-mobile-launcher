@@ -24,6 +24,29 @@ fi
 ACTIVE_VERSION="${ACTIVE_VERSION:-}"
 SERVER_PORT="${SERVER_PORT:-$DEFAULT_PORT}"
 
+COLOR_RESET="\033[0m"
+COLOR_TITLE="\033[1;36m"
+COLOR_OK="\033[1;32m"
+COLOR_WARN="\033[1;33m"
+COLOR_INFO="\033[1;34m"
+COLOR_MUTED="\033[0;37m"
+
+print_line() {
+  printf '%b\n' "$1"
+}
+
+print_ok() {
+  print_line "${COLOR_OK}$1${COLOR_RESET}"
+}
+
+print_warn() {
+  print_line "${COLOR_WARN}$1${COLOR_RESET}"
+}
+
+print_info() {
+  print_line "${COLOR_INFO}$1${COLOR_RESET}"
+}
+
 save_state() {
   cat > "$STATE_FILE" <<EOF
 ACTIVE_VERSION="$ACTIVE_VERSION"
@@ -37,24 +60,25 @@ base_setup() {
 }
 
 pause_wait() {
-  printf '\nPress Enter to continue... '
+  printf '\n按回车继续... '
   read -r _
 }
 
 header() {
   clear
-  echo "========================================"
-  echo "     SillyTavern Terminal Manager"
-  echo "========================================"
-  echo "QQ群号：1097394254"
-  echo "Workspace: $APP_DIR"
+  print_line "${COLOR_TITLE}╔════════════════════════════════════════════╗${COLOR_RESET}"
+  print_line "${COLOR_TITLE}║        SillyTavern 终端管理器             ║${COLOR_RESET}"
+  print_line "${COLOR_TITLE}╚════════════════════════════════════════════╝${COLOR_RESET}"
+  print_line "${COLOR_MUTED}QQ群号：1097394254${COLOR_RESET}"
+  echo
+  echo "工作目录：$APP_DIR"
   if [ -n "$ACTIVE_VERSION" ]; then
-    echo "Active version: $ACTIVE_VERSION"
+    echo "当前版本：$ACTIVE_VERSION"
   else
-    echo "Active version: none"
+    echo "当前版本：未选择"
   fi
-  echo "Port: $SERVER_PORT"
-  echo "========================================"
+  echo "服务端口：$SERVER_PORT"
+  echo
 }
 
 ensure_current_link() {
@@ -72,7 +96,7 @@ refresh_tags() {
 }
 
 show_remote_versions() {
-  echo "Latest official versions:"
+  print_info "官方版本列表："
   echo
   nl -w2 -s'. ' "$TAGS_CACHE" | head -n 50
   echo
@@ -81,12 +105,12 @@ show_remote_versions() {
 
 install_selected_version() {
   header
-  echo "Fetching official versions..."
+  print_info "正在获取官方版本列表..."
   refresh_tags
   echo
   nl -w2 -s'. ' "$TAGS_CACHE" | head -n 50
   echo
-  printf 'Enter version number or exact tag: '
+  printf '请输入版本序号或精确版本号：'
   read -r selection
 
   local chosen=""
@@ -97,16 +121,16 @@ install_selected_version() {
   fi
 
   if [ -z "$chosen" ]; then
-    echo "Invalid selection."
+    print_warn "输入无效。"
     pause_wait
     return
   fi
 
   local target_dir="$VERSIONS_DIR/$chosen"
   if [ -d "$target_dir/.git" ]; then
-    echo "Version $chosen is already installed."
+    print_warn "版本 $chosen 已经安装过了。"
   else
-    echo "Installing version $chosen ..."
+    print_info "正在安装版本 $chosen ..."
     git clone --branch "$chosen" --depth 1 "$REPO_URL" "$target_dir"
     (
       cd "$target_dir"
@@ -117,26 +141,26 @@ install_selected_version() {
   ACTIVE_VERSION="$chosen"
   ensure_current_link
   save_state
-  echo "Version $chosen is now active."
+  print_ok "版本 $chosen 已设为当前版本。"
   pause_wait
 }
 
 install_latest_version() {
   header
-  echo "Fetching latest version..."
+  print_info "正在获取最新官方版本..."
   refresh_tags
   local latest
   latest="$(head -n 1 "$TAGS_CACHE")"
 
   if [ -z "$latest" ]; then
-    echo "Could not determine latest version."
+    print_warn "无法获取最新版本。"
     pause_wait
     return
   fi
 
   local target_dir="$VERSIONS_DIR/$latest"
   if [ ! -d "$target_dir/.git" ]; then
-    echo "Installing latest version $latest ..."
+    print_info "正在安装最新版本 $latest ..."
     git clone --branch "$latest" --depth 1 "$REPO_URL" "$target_dir"
     (
       cd "$target_dir"
@@ -147,19 +171,19 @@ install_latest_version() {
   ACTIVE_VERSION="$latest"
   ensure_current_link
   save_state
-  echo "Latest version $latest is now active."
+  print_ok "最新版本 $latest 已设为当前版本。"
   pause_wait
 }
 
 list_installed_versions() {
   header
-  echo "Installed versions:"
+  print_info "已安装版本："
   echo
 
   local versions
   versions="$(find "$VERSIONS_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -Vr || true)"
   if [ -z "$versions" ]; then
-    echo "No versions installed."
+    print_warn "还没有安装任何版本。"
   else
     echo "$versions" | nl -w2 -s'. '
   fi
@@ -174,20 +198,22 @@ switch_installed_version() {
   versions="$(find "$VERSIONS_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -Vr || true)"
 
   if [ -z "$versions" ]; then
-    echo "No versions installed."
+    print_warn "还没有安装任何版本。"
     pause_wait
     return
   fi
 
+  print_info "请选择一个已安装版本："
+  echo
   echo "$versions" | nl -w2 -s'. '
   echo
-  printf 'Choose installed version number: '
+  printf '请输入序号：'
   read -r selection
 
   local chosen
   chosen="$(echo "$versions" | sed -n "${selection}p" || true)"
   if [ -z "$chosen" ]; then
-    echo "Invalid selection."
+    print_warn "输入无效。"
     pause_wait
     return
   fi
@@ -195,7 +221,7 @@ switch_installed_version() {
   ACTIVE_VERSION="$chosen"
   ensure_current_link
   save_state
-  echo "Switched to $chosen"
+  print_ok "已切换到版本 $chosen"
   pause_wait
 }
 
@@ -203,7 +229,7 @@ start_server() {
   header
 
   if [ -z "$ACTIVE_VERSION" ] || [ ! -d "$VERSIONS_DIR/$ACTIVE_VERSION" ]; then
-    echo "No active version selected."
+    print_warn "还没有选择当前版本，请先安装或切换版本。"
     pause_wait
     return
   fi
@@ -212,8 +238,8 @@ start_server() {
     local old_pid
     old_pid="$(cat "$SUPERVISOR_PID_FILE" 2>/dev/null || true)"
     if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-      echo "SillyTavern keepalive is already running on PID $old_pid"
-      echo "Open: http://127.0.0.1:$SERVER_PORT"
+      print_warn "酒馆保活进程已在运行，PID：$old_pid"
+      echo "访问地址：http://127.0.0.1:$SERVER_PORT"
       pause_wait
       return
     fi
@@ -241,10 +267,10 @@ start_server() {
     echo $! > "$SUPERVISOR_PID_FILE"
   )
 
-  echo "Started SillyTavern $ACTIVE_VERSION"
-  echo "Keepalive: enabled"
-  echo "Open: http://127.0.0.1:$SERVER_PORT"
-  echo "Log: $log_file"
+  print_ok "SillyTavern 已启动：$ACTIVE_VERSION"
+  echo "保活状态：已开启"
+  echo "访问地址：http://127.0.0.1:$SERVER_PORT"
+  echo "日志文件：$log_file"
   pause_wait
 }
 
@@ -252,7 +278,7 @@ stop_server() {
   header
 
   if [ ! -f "$SUPERVISOR_PID_FILE" ]; then
-    echo "Server is not running."
+    print_warn "当前没有运行中的酒馆服务。"
     pause_wait
     return
   fi
@@ -264,14 +290,14 @@ stop_server() {
 
   if [ -n "$supervisor_pid" ] && kill -0 "$supervisor_pid" 2>/dev/null; then
     kill "$supervisor_pid" 2>/dev/null || true
-    echo "Stopped keepalive PID $supervisor_pid"
+    print_ok "已停止保活进程：$supervisor_pid"
   else
-    echo "Keepalive process already stopped."
+    print_warn "保活进程已经停止。"
   fi
 
   if [ -n "$child_pid" ] && kill -0 "$child_pid" 2>/dev/null; then
     kill "$child_pid" 2>/dev/null || true
-    echo "Stopped server PID $child_pid"
+    print_ok "已停止酒馆进程：$child_pid"
   fi
 
   if command -v termux-wake-unlock >/dev/null 2>&1; then
@@ -286,17 +312,17 @@ refresh_active_dependencies() {
   header
 
   if [ -z "$ACTIVE_VERSION" ] || [ ! -d "$VERSIONS_DIR/$ACTIVE_VERSION" ]; then
-    echo "No active version selected."
+    print_warn "还没有选择当前版本。"
     pause_wait
     return
   fi
 
-  echo "Running npm install for $ACTIVE_VERSION ..."
+  print_info "正在刷新 $ACTIVE_VERSION 的依赖..."
   (
     cd "$VERSIONS_DIR/$ACTIVE_VERSION"
     npm install
   )
-  echo "Done."
+  print_ok "依赖刷新完成。"
   pause_wait
 }
 
@@ -306,29 +332,31 @@ show_latest_log() {
   latest_log="$(find "$LOG_DIR" -type f -name '*.log' | sort | tail -n 1 || true)"
 
   if [ -z "$latest_log" ]; then
-    echo "No logs found."
+    print_warn "还没有日志文件。"
     pause_wait
     return
   fi
 
+  print_info "最新日志：$latest_log"
+  echo
   tail -n 40 "$latest_log"
   pause_wait
 }
 
 change_port() {
   header
-  printf 'Enter port (current %s): ' "$SERVER_PORT"
+  printf '请输入新端口（当前 %s）：' "$SERVER_PORT"
   read -r new_port
 
   if ! echo "$new_port" | grep -Eq '^[0-9]+$'; then
-    echo "Invalid port."
+    print_warn "端口输入无效。"
     pause_wait
     return
   fi
 
   SERVER_PORT="$new_port"
   save_state
-  echo "Port changed to $SERVER_PORT"
+  print_ok "端口已改为 $SERVER_PORT"
   pause_wait
 }
 
@@ -336,25 +364,27 @@ main_menu() {
   while true; do
     header
     cat <<'EOF'
-1. First-time setup
-2. Show official versions
-3. Install a specific version
-4. Install latest official version
-5. List installed versions
-6. Switch active version
-7. Start SillyTavern
-8. Stop SillyTavern
-9. Refresh active version dependencies
-10. Show latest log
-11. Change server port
-0. Exit
+┌──────────────────────────────────────────┐
+│ 1. 首次环境准备                         │
+│ 2. 查看官方版本列表                     │
+│ 3. 安装指定版本                         │
+│ 4. 安装最新官方版本                     │
+│ 5. 查看已安装版本                       │
+│ 6. 切换当前版本                         │
+│ 7. 启动 SillyTavern                     │
+│ 8. 停止 SillyTavern                     │
+│ 9. 刷新当前版本依赖                     │
+│ 10. 查看最新日志                        │
+│ 11. 修改服务端口                        │
+│ 0. 退出                                 │
+└──────────────────────────────────────────┘
 EOF
     echo
-    printf 'Choose: '
+    printf '请输入选项数字：'
     read -r choice
 
     case "$choice" in
-      1) header; echo "Installing base dependencies..."; base_setup; echo "Done."; pause_wait ;;
+      1) header; print_info "正在安装基础依赖..."; base_setup; print_ok "基础依赖安装完成。"; pause_wait ;;
       2) header; refresh_tags; show_remote_versions ;;
       3) install_selected_version ;;
       4) install_latest_version ;;
@@ -366,7 +396,7 @@ EOF
       10) show_latest_log ;;
       11) change_port ;;
       0) exit 0 ;;
-      *) echo "Invalid choice."; pause_wait ;;
+      *) print_warn "没有这个选项，请重新输入。"; pause_wait ;;
     esac
   done
 }
