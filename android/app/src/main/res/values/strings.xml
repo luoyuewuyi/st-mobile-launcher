@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">SillyTavern Launcher</string>
+    <string name="status_starting">正在启动本地酒馆，请稍候……</string>
+    <string name="status_running">酒馆已启动</string>
+    <string name="status_timeout">启动超时，请先检查 Termux 初始化是否完成</string>
+    <string name="retry">重新启动</string>
+    <string name="open_termux">打开 Termux</string>
+    <string name="permission_title">需要授权 Termux 命令调用</string>
+    <string name="permission_message">首次使用时，请先打开 Termux 完成安装，并允许外部应用执行命令，然后回到这里重新启动。</string>
+    <string name="termux_missing_title">未检测到 Termux</string>
+    <string name="termux_missing_message">这个启动器依赖 Termux 来运行官方 SillyTavern 服务，请先安装 Termux。</string>
+    <string name="open_termux_page">前往安装页</string>
+    <string name="error_failed_to_start">启动服务失败，请检查 Termux 是否已安装并完成初始化</string>
+    <string name="error_server_timeout">酒馆没有在预期时间内启动，请打开 Termux 查看日志</string>
+    <string name="help_text">首次使用只需要在 Termux 里完成一次安装。完成后，以后基本就是点开本应用直接进入酒馆。</string>
+</resources>
