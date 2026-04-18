@@ -164,6 +164,9 @@ say "[1/4] 检查基础环境..."
 apt update || true
 apt install -y git jq nodejs-lts which wget curl || true
 
+say "[1.5/4] 清理旧安装缓存..."
+find /data/data/com.termux/files/usr/tmp -maxdepth 1 -type f -name 'st-install-manager*.sh' -delete 2>/dev/null || true
+
 say "[2/4] 下载主脚本..."
 VERSION_ID="$(date +%Y%m%d%H%M%S)"
 VERSION_DIR="$SCRIPT_DIR/$VERSION_ID"
