@@ -7,7 +7,8 @@ VERSIONS_DIR="$APP_DIR/versions"
 CACHE_DIR="$APP_DIR/cache"
 LOG_DIR="$APP_DIR/logs"
 STATE_FILE="$APP_DIR/state.env"
-PID_FILE="$APP_DIR/sillytavern.pid"
+SUPERVISOR_PID_FILE="$APP_DIR/sillytavern.pid"
+CHILD_PID_FILE="$APP_DIR/sillytavern-child.pid"
 ACTIVE_LINK="$APP_DIR/current"
 REPO_URL="https://github.com/SillyTavern/SillyTavern.git"
 TAGS_CACHE="$CACHE_DIR/tags.txt"
@@ -45,6 +46,7 @@ header() {
   echo "========================================"
   echo "     SillyTavern Terminal Manager"
   echo "========================================"
+  echo "QQ群号：1097394254"
   echo "Workspace: $APP_DIR"
   if [ -n "$ACTIVE_VERSION" ]; then
     echo "Active version: $ACTIVE_VERSION"
@@ -101,7 +103,6 @@ install_selected_version() {
   fi
 
   local target_dir="$VERSIONS_DIR/$chosen"
-
   if [ -d "$target_dir/.git" ]; then
     echo "Version $chosen is already installed."
   else
@@ -134,7 +135,6 @@ install_latest_version() {
   fi
 
   local target_dir="$VERSIONS_DIR/$latest"
-
   if [ ! -d "$target_dir/.git" ]; then
     echo "Installing latest version $latest ..."
     git clone --branch "$latest" --depth 1 "$REPO_URL" "$target_dir"
@@ -158,7 +158,6 @@ list_installed_versions() {
 
   local versions
   versions="$(find "$VERSIONS_DIR" -mindepth 1 -maxdepth 1 -type d -printf '%f\n' | sort -Vr || true)"
-
   if [ -z "$versions" ]; then
     echo "No versions installed."
   else
@@ -187,7 +186,6 @@ switch_installed_version() {
 
   local chosen
   chosen="$(echo "$versions" | sed -n "${selection}p" || true)"
-
   if [ -z "$chosen" ]; then
     echo "Invalid selection."
     pause_wait
@@ -210,11 +208,11 @@ start_server() {
     return
   fi
 
-  if [ -f "$PID_FILE" ]; then
+  if [ -f "$SUPERVISOR_PID_FILE" ]; then
     local old_pid
-    old_pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+    old_pid="$(cat "$SUPERVISOR_PID_FILE" 2>/dev/null || true)"
     if [ -n "$old_pid" ] && kill -0 "$old_pid" 2>/dev/null; then
-      echo "SillyTavern is already running on PID $old_pid"
+      echo "SillyTavern keepalive is already running on PID $old_pid"
       echo "Open: http://127.0.0.1:$SERVER_PORT"
       pause_wait
       return
@@ -223,13 +221,28 @@ start_server() {
 
   ensure_current_link
   local log_file="$LOG_DIR/sillytavern-$ACTIVE_VERSION.log"
+
+  if command -v termux-wake-lock >/dev/null 2>&1; then
+    termux-wake-lock || true
+  fi
+
   (
     cd "$ACTIVE_LINK"
-    nohup node server.js --port "$SERVER_PORT" > "$log_file" 2>&1 &
-    echo $! > "$PID_FILE"
+    nohup bash -c '
+      while true; do
+        node server.js --port "'"$SERVER_PORT"'" >> "'"$log_file"'" 2>&1 &
+        child=$!
+        echo "$child" > "'"$CHILD_PID_FILE"'"
+        wait "$child"
+        echo "[keepalive] server exited, restarting in 2 seconds..." >> "'"$log_file"'"
+        sleep 2
+      done
+    ' >/dev/null 2>&1 &
+    echo $! > "$SUPERVISOR_PID_FILE"
   )
 
   echo "Started SillyTavern $ACTIVE_VERSION"
+  echo "Keepalive: enabled"
   echo "Open: http://127.0.0.1:$SERVER_PORT"
   echo "Log: $log_file"
   pause_wait
@@ -238,23 +251,34 @@ start_server() {
 stop_server() {
   header
 
-  if [ ! -f "$PID_FILE" ]; then
+  if [ ! -f "$SUPERVISOR_PID_FILE" ]; then
     echo "Server is not running."
     pause_wait
     return
   fi
 
-  local pid
-  pid="$(cat "$PID_FILE" 2>/dev/null || true)"
+  local supervisor_pid
+  supervisor_pid="$(cat "$SUPERVISOR_PID_FILE" 2>/dev/null || true)"
+  local child_pid
+  child_pid="$(cat "$CHILD_PID_FILE" 2>/dev/null || true)"
 
-  if [ -n "$pid" ] && kill -0 "$pid" 2>/dev/null; then
-    kill "$pid"
-    echo "Stopped PID $pid"
+  if [ -n "$supervisor_pid" ] && kill -0 "$supervisor_pid" 2>/dev/null; then
+    kill "$supervisor_pid" 2>/dev/null || true
+    echo "Stopped keepalive PID $supervisor_pid"
   else
-    echo "Process already stopped."
+    echo "Keepalive process already stopped."
   fi
 
-  rm -f "$PID_FILE"
+  if [ -n "$child_pid" ] && kill -0 "$child_pid" 2>/dev/null; then
+    kill "$child_pid" 2>/dev/null || true
+    echo "Stopped server PID $child_pid"
+  fi
+
+  if command -v termux-wake-unlock >/dev/null 2>&1; then
+    termux-wake-unlock || true
+  fi
+
+  rm -f "$SUPERVISOR_PID_FILE" "$CHILD_PID_FILE"
   pause_wait
 }
 
