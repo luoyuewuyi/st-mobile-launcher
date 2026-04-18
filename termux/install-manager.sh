@@ -59,40 +59,25 @@ clean_old_autostart() {
   local file="$1"
   [ -f "$file" ] || return 0
 
-  python - "$file" "$OLD_MARKER_BEGIN" "$OLD_MARKER_END" "$HOOK_LINE" <<'PY'
-import pathlib
-import sys
+  local tmp_file
+  tmp_file="$(mktemp)"
 
-path = pathlib.Path(sys.argv[1])
-begin = sys.argv[2]
-end = sys.argv[3]
-hook = sys.argv[4]
-text = path.read_text(encoding="utf-8", errors="ignore")
+  awk -v begin="$OLD_MARKER_BEGIN" -v end="$OLD_MARKER_END" -v hook="$HOOK_LINE" '
+    $0 == begin { skip = 1; next }
+    skip && $0 == end { skip = 0; next }
+    skip { next }
+    {
+      trimmed = $0
+      gsub(/^[ \t]+|[ \t]+$/, "", trimmed)
+      if (trimmed == hook) next
+      if (index(trimmed, "st-terminal") && index(trimmed, "autostart")) next
+      if (index(trimmed, "ST_TERMINAL_RUNNING")) next
+      if (trimmed == "st-terminal") next
+      print
+    }
+  ' "$file" > "$tmp_file"
 
-while begin in text and end in text:
-    start = text.index(begin)
-    finish = text.index(end, start) + len(end)
-    tail = text[finish:]
-    if tail.startswith("\n"):
-        finish += 1
-    text = text[:start] + text[finish:]
-
-lines = []
-for raw_line in text.splitlines():
-    line = raw_line.strip()
-    if line == hook:
-        continue
-    if "st-terminal" in line and "autostart" in line:
-        continue
-    if "ST_TERMINAL_RUNNING" in line:
-        continue
-    if line == "st-terminal":
-        continue
-    lines.append(raw_line)
-
-cleaned = "\n".join(lines).rstrip() + "\n"
-path.write_text(cleaned, encoding="utf-8")
-PY
+  mv "$tmp_file" "$file"
 }
 
 diagnose_env() {
