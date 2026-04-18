@@ -1,90 +1,107 @@
 # ST Mobile Launcher
 
-An Android one-tap launcher for running the official [SillyTavern](https://github.com/SillyTavern/SillyTavern) locally through Termux.
+这个项目的目的很简单：
 
-This project does not reimplement SillyTavern. It keeps the official SillyTavern app running in Termux and uses a very small Android app to:
+- 让手机上运行官方 `SillyTavern`
+- 尽量把操作压缩到傻瓜式
 
-1. Trigger the Termux startup script
-2. Wait for the local server to become available
-3. Open `http://127.0.0.1:8000` in a WebView
+## APK 到底是干嘛的
 
-That approach is the closest to "same features as normal SillyTavern" while still keeping mobile usage simple.
+这个 `APK` 不是酒馆本体。
 
-## What is included
+它是一个“启动器”：
 
-- `termux/install-st.sh`
-  - First-time installer
-  - Installs `git` and `nodejs-lts`
-  - Clones official SillyTavern
-  - Runs `npm install`
-  - Generates start/stop/update scripts
-- `termux/bootstrap.sh`
-  - One-command bootstrap entry
-- `android/`
-  - Minimal Android launcher app
-  - Calls `Termux RUN_COMMAND`
-  - Opens local SillyTavern in a WebView
+1. 帮你在手机上点一下就启动 `Termux` 里的酒馆服务
+2. 等酒馆启动好
+3. 直接把酒馆页面打开给你用
 
-## User flow
+也就是说：
 
-The intended user experience is:
+- `Termux` 负责真的运行官方 `SillyTavern`
+- `APK` 负责把“打开 Termux、输入命令、等服务起来、再打开页面”这些动作尽量简化
 
-1. Install Termux once
-2. Run one install command in Termux once
-3. After that, mostly just tap the launcher app
+所以这两个东西要一起用：
 
-It is not zero-setup, but after the first setup it is close to one-tap use.
+1. `Termux`
+2. `st-mobile-launcher-debug.apk`
 
-## Quick start
+## 最终怎么用
 
-### 1. Install Termux
+按正常使用理解，流程应该是这样的：
 
-Use the GitHub or F-Droid build of Termux.
+### 第一次安装
 
-### 2. Run the installer in Termux
+1. 手机安装 `Termux`
+2. 手机安装 `APK`
+3. 打开 `Termux`
+4. 在 `Termux` 里执行这一条命令：
 
 ```bash
-curl -fsSL https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/main/termux/bootstrap.sh | bash
+curl -fsSL https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/bootstrap.sh | bash
 ```
 
-If you prefer, you can also run the installer script manually:
+5. 等它自动装完
+6. 关闭一次 `Termux`，再重新打开一次
+7. 打开 `APK`
+8. 第一次如果弹权限，允许它调用 `Termux`
+
+做完这一次后，后面就简单很多了。
+
+### 以后日常使用
+
+以后基本就是：
+
+1. 点开 `APK`
+2. 它自动尝试启动酒馆
+3. 自动进入酒馆页面
+
+这就是这个启动器存在的意义。
+
+## 如果你问“那我平时到底点哪个”
+
+按我现在做的方案，你平时主要点：
+
+- `APK`
+
+只有下面几种情况，你才需要进 `Termux`：
+
+- 第一次安装
+- 更新酒馆
+- 出问题要看日志
+
+## 更新怎么做
+
+如果以后要更新酒馆，在 `Termux` 里运行：
 
 ```bash
-bash install-st.sh
-```
-
-### 3. Install the Android launcher APK
-
-Build the APK from [`android`](E:\自己瞎搞\st-mobile-launcher\android) and install it on the phone.
-
-### 4. Grant the first permission
-
-On first app launch, allow the launcher to run commands in the Termux environment.
-
-## Termux commands
-
-```bash
-bash ~/sillytavern-mobile/start-st.sh
-bash ~/sillytavern-mobile/stop-st.sh
 bash ~/sillytavern-mobile/update-st.sh
 ```
 
-## Current limitations
+## 现在给你准备好的文件
 
-1. The first setup still requires Termux installation and one manual permission grant.
-2. Some Android ROMs are aggressive about background process killing.
-3. Initial `npm install` can take time and network bandwidth.
-4. The Android launcher is intentionally minimal and does not replace full desktop management tools.
+你当前可以直接用的 APK 在这里：
 
-## Android build notes
+[`st-mobile-launcher-debug.apk`](E:\自己瞎搞\st-mobile-launcher\release\st-mobile-launcher-debug.apk)
 
-- The project builds successfully as a debug APK.
-- On Windows, the project path contains non-ASCII characters, so `android.overridePathCheck=true` is enabled in `android/gradle.properties`.
-
-Current built APK path:
+原始构建输出还在这里：
 
 [`app-debug.apk`](E:\自己瞎搞\st-mobile-launcher\android\app\build\outputs\apk\debug\app-debug.apk)
 
-## Why this design
+## 项目地址
 
-Trying to fully repackage SillyTavern as a native Android app would create much higher maintenance cost and likely break feature parity. Running the official upstream project in Termux keeps compatibility much higher.
+GitHub 仓库：
+
+[https://github.com/luoyuewuyi/st-mobile-launcher](https://github.com/luoyuewuyi/st-mobile-launcher)
+
+## 当前方案的真实情况
+
+这套方案已经能做到：
+
+- 官方 `SillyTavern` 跑在手机本地
+- 有独立 APK 负责一键启动
+- 首次配置后，后续使用尽量接近一键进入
+
+但它不是“完全不需要 Termux”。
+
+因为真正的酒馆服务还是在 `Termux` 里跑的。  
+我已经按“最省事、最接近原版功能、最容易成功”这个方向做到了当前最稳的方案。
