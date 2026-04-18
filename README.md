@@ -1,77 +1,50 @@
 # ST Terminal Manager
 
-这是一个专门给 `Termux` 用的 `SillyTavern` 终端管理器。
+现在菜单只保留这几个选项：
 
-特点：
+1. 启动酒馆
+2. 版本选择
+3. 更新酒馆
+4. 更新脚本
+5. 查看日志
+0. 退出
 
-- 全中文菜单
-- 数字选择操作
-- 自动拉取官方版本列表
-- 支持安装指定版本
-- 支持安装最新版本
-- 支持切换版本
-- 启动后带基础保活
-- 打开 `Termux` 自动进入界面
+## 安装
 
-## 一键安装
-
-如果你的 `Termux` 是干净、正常的新环境，直接运行：
+正常环境直接执行：
 
 ```bash
 curl -O https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/install-manager.sh && bash install-manager.sh
 ```
 
-## 如果之前报过 curl / openssl / libngtcp2 错误
+## 脚本更新说明
 
-那说明不是本项目本身的问题，而是你的 `Termux` 底层库已经乱了。
+现在“更新脚本”不再只是覆盖当前文件。
 
-这种情况先修环境，再装管理器：
+而是：
 
-```bash
-curl -O https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/fix-termux.sh && bash fix-termux.sh
-```
+1. 从仓库读取脚本版本号
+2. 下载到新的脚本版本目录
+3. 更新当前脚本软链接
+4. 最多保留最近 3 个脚本版本
 
-修完后再执行安装命令：
+这样脚本更新能真正切到最新版本，同时保留最近 3 个旧版本，方便回退。
 
-```bash
-curl -O https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/install-manager.sh && bash install-manager.sh
-```
+## 酒馆更新说明
 
-## 安装后的体验
+“更新酒馆”会：
 
-安装完成后会自动：
+1. 获取官方最新版本
+2. 下载并切换到最新版本
+3. 最多保留最近 3 个酒馆版本
 
-- 进入终端菜单
-- 把自动启动写入 `~/.bashrc`
+这样既能更新，也能保留回退空间。
 
-所以以后你重新打开 `Termux`，会直接进这个管理界面。
+## 日志
 
-## 终端菜单功能
+“查看日志”会显示最近一个日志文件内容。
 
-当前支持：
-
-1. 首次环境准备
-2. 查看官方版本列表
-3. 安装指定版本
-4. 安装最新官方版本
-5. 查看已安装版本
-6. 切换当前版本
-7. 启动 `SillyTavern`
-8. 停止 `SillyTavern`
-9. 刷新当前版本依赖
-10. 查看最新日志
-11. 修改服务端口
-
-## 保活说明
-
-启动酒馆时会：
-
-1. 使用守护循环拉起进程
-2. 如果系统支持，就调用 `termux-wake-lock`
-
-这会比单次后台启动稳很多。
-
-但如果安卓系统本身强杀 `Termux`，任何普通终端脚本都无法承诺绝对 100% 不死。
+看完后随便按一个键就能退出。
 
 ## 仓库地址
 

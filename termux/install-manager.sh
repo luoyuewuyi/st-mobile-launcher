@@ -4,13 +4,15 @@ set -eu
 HOME_DIR="${HOME:-/data/data/com.termux/files/home}"
 APP_DIR="$HOME_DIR/sillytavern-terminal"
 BIN_DIR="$HOME_DIR/.local/bin"
+SCRIPT_DIR="$APP_DIR/scripts"
+SCRIPT_ACTIVE_LINK="$APP_DIR/current-script.sh"
 MANAGER_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/st-manager.sh"
-MANAGER_FILE="$APP_DIR/st-manager.sh"
+VERSION_META_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/version.txt"
 SHELL_RC="$HOME_DIR/.bashrc"
 AUTO_MARKER_BEGIN="# >>> st-terminal autostart >>>"
 AUTO_MARKER_END="# <<< st-terminal autostart <<<"
 
-mkdir -p "$APP_DIR" "$BIN_DIR"
+mkdir -p "$APP_DIR" "$BIN_DIR" "$SCRIPT_DIR"
 
 echo "== ST Terminal Manager: Install =="
 echo
@@ -18,14 +20,24 @@ echo
 apt update
 apt install -y git curl jq nodejs-lts which
 
+REMOTE_VERSION="$(curl -fsSL "$VERSION_META_URL" 2>/dev/null || echo 1)"
+VERSION_DIR="$SCRIPT_DIR/$REMOTE_VERSION"
+MANAGER_FILE="$VERSION_DIR/st-manager.sh"
+mkdir -p "$VERSION_DIR"
+
 echo "[1/3] Downloading manager..."
 curl -fsSL "$MANAGER_URL" -o "$MANAGER_FILE"
 chmod +x "$MANAGER_FILE"
+ln -sfn "$MANAGER_FILE" "$SCRIPT_ACTIVE_LINK"
 
 echo "[2/3] Creating command entry..."
 cat > "$BIN_DIR/st-terminal" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
-exec "$MANAGER_FILE"
+if [ -L "$SCRIPT_ACTIVE_LINK" ]; then
+  exec "$SCRIPT_ACTIVE_LINK"
+else
+  exec "$MANAGER_FILE"
+fi
 EOF
 chmod +x "$BIN_DIR/st-terminal"
 
@@ -57,7 +69,6 @@ fi
 
 echo
 echo "Install complete."
-echo "Termux will auto-open the manager menu next time."
 echo "Starting manager now..."
 sleep 1
 exec "$MANAGER_FILE"
