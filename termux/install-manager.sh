@@ -13,8 +13,9 @@ AUTO_MARKER_END="# <<< st-terminal autostart <<<"
 
 mkdir -p "$APP_DIR" "$BIN_DIR" "$SCRIPT_DIR"
 
-echo "== 酒馆终端管理器：安装程序 =="
-echo
+say() {
+  printf '%s\n' "$1"
+}
 
 curl_ok() {
   command -v curl >/dev/null 2>&1 && curl --version >/dev/null 2>&1
@@ -24,8 +25,50 @@ wget_ok() {
   command -v wget >/dev/null 2>&1 && wget --version >/dev/null 2>&1
 }
 
+apt_ok() {
+  command -v apt >/dev/null 2>&1
+}
+
+sources_ok() {
+  [ -s /data/data/com.termux/files/usr/etc/apt/sources.list ]
+}
+
+diagnose_env() {
+  say "== 酒馆终端管理器：环境诊断 =="
+  say
+
+  if ! apt_ok; then
+    say "[诊断] 当前环境里没有 apt。"
+    say "[结论] 这不像正常的 Termux。"
+    return 1
+  fi
+
+  if ! sources_ok; then
+    say "[诊断] 还没有配置镜像源。"
+    say "[建议] 先运行 termux-change-repo 选择镜像源。"
+  else
+    say "[诊断] 镜像源文件存在。"
+  fi
+
+  if curl_ok; then
+    say "[诊断] curl：正常"
+  else
+    say "[诊断] curl：异常"
+    say "[提示] 常见原因是 openssl / libcurl / libngtcp2 库版本不一致。"
+  fi
+
+  if wget_ok; then
+    say "[诊断] wget：正常"
+  else
+    say "[诊断] wget：不可用或未安装"
+  fi
+
+  say
+  return 0
+}
+
 fix_env() {
-  echo "[修复] 正在尝试修复环境..."
+  say "[修复] 正在尝试修复下载环境..."
   apt update || true
   apt full-upgrade -y || apt upgrade -y || true
   apt install --reinstall -y \
@@ -68,28 +111,44 @@ download_file() {
   return 1
 }
 
-echo "[1/4] 检查基础环境..."
+diagnose_env || true
+
+say "[1/4] 检查基础环境..."
 apt update || true
 apt install -y git jq nodejs-lts which wget curl || true
 
-echo "[2/4] 下载主脚本..."
+say "[2/4] 下载主脚本..."
 VERSION_ID="$(date +%Y%m%d%H%M%S)"
 VERSION_DIR="$SCRIPT_DIR/$VERSION_ID"
 MANAGER_FILE="$VERSION_DIR/st-manager.sh"
 mkdir -p "$VERSION_DIR"
 
 if ! download_file "$MANAGER_URL" "$MANAGER_FILE"; then
-  echo
-  echo "安装失败：下载链路仍然不可用。"
-  echo "这通常说明当前 Termux 已严重损坏。"
-  echo "建议重装最新版 Termux 后再执行同一条安装命令。"
+  say
+  say "安装失败。"
+  say
+  say "诊断结论："
+  if ! sources_ok; then
+    say "- 镜像源可能没有配置好"
+  fi
+  if ! curl_ok; then
+    say "- curl 仍然不可用"
+  fi
+  if ! wget_ok; then
+    say "- wget 也不可用"
+  fi
+  say
+  say "建议："
+  say "1. 先运行 termux-change-repo 选择镜像源"
+  say "2. 再运行：apt update && apt full-upgrade -y"
+  say "3. 如果还是不行，重装最新版 Termux"
   exit 1
 fi
 
 chmod +x "$MANAGER_FILE"
 ln -sfn "$MANAGER_FILE" "$SCRIPT_ACTIVE_LINK"
 
-echo "[3/4] 创建启动命令..."
+say "[3/4] 创建启动命令..."
 cat > "$BIN_DIR/st-terminal" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
 if [ -L "$SCRIPT_ACTIVE_LINK" ]; then
@@ -100,7 +159,7 @@ fi
 EOF
 chmod +x "$BIN_DIR/st-terminal"
 
-echo "[4/4] 写入自动启动..."
+say "[4/4] 写入自动启动..."
 if [ -f "$SHELL_RC" ]; then
   if ! grep -Fq "$AUTO_MARKER_BEGIN" "$SHELL_RC"; then
     cat >> "$SHELL_RC" <<EOF
@@ -126,8 +185,8 @@ $AUTO_MARKER_END
 EOF
 fi
 
-echo
-echo "安装完成。"
-echo "正在进入菜单..."
+say
+say "安装完成。"
+say "正在进入菜单..."
 sleep 1
 exec "$MANAGER_FILE"

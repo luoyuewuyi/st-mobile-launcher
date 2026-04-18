@@ -12,6 +12,7 @@ curl -fsSL https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/maste
 2. 如果 `curl` 不正常，就尝试修复 `curl/openssl/libngtcp2`
 3. 如果 `curl` 还是不正常，就尝试改用 `wget`
 4. 修不好再明确报错，提示重装最新版 `Termux`
+5. 安装前会先输出中文诊断结果，告诉用户是 `curl` 坏了、镜像源没配，还是下载工具都不可用
 
 ## 菜单
 
