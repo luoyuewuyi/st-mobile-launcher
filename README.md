@@ -1,107 +1,131 @@
-# ST Mobile Launcher
+# ST Terminal Manager
 
-这个项目的目的很简单：
+这是一个完全依赖终端的 `SillyTavern` 管理器。
 
-- 让手机上运行官方 `SillyTavern`
-- 尽量把操作压缩到傻瓜式
+它不再以 `APK` 为核心，而是直接在 `Termux` 里提供一个数字菜单界面，让你通过输入数字完成这些事：
 
-## APK 到底是干嘛的
+1. 查看官方全部版本
+2. 安装指定版本
+3. 安装最新版本
+4. 切换已安装版本
+5. 启动酒馆
+6. 停止酒馆
+7. 刷新当前版本依赖
+8. 查看日志
+9. 修改端口
 
-这个 `APK` 不是酒馆本体。
+## 适合什么人
 
-它是一个“启动器”：
+适合想要：
 
-1. 帮你在手机上点一下就启动 `Termux` 里的酒馆服务
-2. 等酒馆启动好
-3. 直接把酒馆页面打开给你用
+- 完全依赖 `Termux`
+- 不想装单独 `APK`
+- 用数字菜单管理 `SillyTavern`
+- 想下载和切换不同官方版本
 
-也就是说：
+## 一键安装
 
-- `Termux` 负责真的运行官方 `SillyTavern`
-- `APK` 负责把“打开 Termux、输入命令、等服务起来、再打开页面”这些动作尽量简化
-
-所以这两个东西要一起用：
-
-1. `Termux`
-2. `st-mobile-launcher-debug.apk`
-
-## 最终怎么用
-
-按正常使用理解，流程应该是这样的：
-
-### 第一次安装
-
-1. 手机安装 `Termux`
-2. 手机安装 `APK`
-3. 打开 `Termux`
-4. 在 `Termux` 里执行这一条命令：
+在 `Termux` 里执行：
 
 ```bash
 curl -fsSL https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/bootstrap.sh | bash
 ```
 
-5. 等它自动装完
-6. 关闭一次 `Termux`，再重新打开一次
-7. 打开 `APK`
-8. 第一次如果弹权限，允许它调用 `Termux`
+安装完成后，如果命令还不能立刻识别，就重开一次 `Termux`。
 
-做完这一次后，后面就简单很多了。
-
-### 以后日常使用
-
-以后基本就是：
-
-1. 点开 `APK`
-2. 它自动尝试启动酒馆
-3. 自动进入酒馆页面
-
-这就是这个启动器存在的意义。
-
-## 如果你问“那我平时到底点哪个”
-
-按我现在做的方案，你平时主要点：
-
-- `APK`
-
-只有下面几种情况，你才需要进 `Termux`：
-
-- 第一次安装
-- 更新酒馆
-- 出问题要看日志
-
-## 更新怎么做
-
-如果以后要更新酒馆，在 `Termux` 里运行：
+然后运行：
 
 ```bash
-bash ~/sillytavern-mobile/update-st.sh
+st-terminal
 ```
 
-## 现在给你准备好的文件
+## 使用方式
 
-你当前可以直接用的 APK 在这里：
+运行 `st-terminal` 后，你会看到一个数字菜单，大概是这样：
 
-[`st-mobile-launcher-debug.apk`](E:\自己瞎搞\st-mobile-launcher\release\st-mobile-launcher-debug.apk)
+```text
+1. First-time setup
+2. Show official versions
+3. Install a specific version
+4. Install latest official version
+5. List installed versions
+6. Switch active version
+7. Start SillyTavern
+8. Stop SillyTavern
+9. Refresh active version dependencies
+10. Show latest log
+11. Change server port
+0. Exit
+```
 
-原始构建输出还在这里：
+你只要输入数字就行。
 
-[`app-debug.apk`](E:\自己瞎搞\st-mobile-launcher\android\app\build\outputs\apk\debug\app-debug.apk)
+## 推荐使用顺序
 
-## 项目地址
+第一次建议这样操作：
 
-GitHub 仓库：
+1. 输入 `1`
+   作用：安装基础依赖
+2. 输入 `2`
+   作用：查看官方版本列表
+3. 输入 `3`
+   作用：按版本号安装指定版本
+4. 输入 `7`
+   作用：启动酒馆
+
+启动后，在浏览器打开：
+
+```text
+http://127.0.0.1:8000
+```
+
+如果你改过端口，就打开你设置的新端口。
+
+## 版本管理说明
+
+这个工具会从官方仓库实时抓取 `SillyTavern` 的 tag 列表，所以可以看到官方历史版本。
+
+已实现的版本相关能力：
+
+- 查看远端官方版本
+- 安装指定 tag 版本
+- 安装最新官方版本
+- 切换当前激活版本
+
+每个版本会单独放在自己的目录里，互不覆盖。
+
+## 当前目录结构
+
+安装后，主要内容会在这里：
+
+```text
+~/sillytavern-terminal/
+```
+
+里面大致包括：
+
+- `versions/`
+  - 每个安装好的 `SillyTavern` 版本
+- `logs/`
+  - 启动日志
+- `state.env`
+  - 当前激活版本和端口
+
+## 当前限制
+
+目前这个工具已经能完成“纯终端菜单管理 + 多版本安装切换”的主流程。
+
+但我也实话告诉你两点：
+
+1. “实时更新”目前指的是实时获取官方版本列表，以及可安装最新官方版本
+2. 还没有做成自动后台轮询更新提醒
+
+如果你要，我下一步可以继续把它补成：
+
+- 启动时自动检查是否有更新
+- 显示“当前版本和最新版本差距”
+- 一键升级到最新版本
+
+## 仓库地址
 
 [https://github.com/luoyuewuyi/st-mobile-launcher](https://github.com/luoyuewuyi/st-mobile-launcher)
-
-## 当前方案的真实情况
-
-这套方案已经能做到：
-
-- 官方 `SillyTavern` 跑在手机本地
-- 有独立 APK 负责一键启动
-- 首次配置后，后续使用尽量接近一键进入
-
-但它不是“完全不需要 Termux”。
-
-因为真正的酒馆服务还是在 `Termux` 里跑的。  
-我已经按“最省事、最接近原版功能、最容易成功”这个方向做到了当前最稳的方案。
