@@ -5,6 +5,9 @@ HOME_DIR="${HOME:-/data/data/com.termux/files/home}"
 APP_DIR="$HOME_DIR/sillytavern-terminal"
 BIN_DIR="$HOME_DIR/.local/bin"
 MANAGER_FILE="$APP_DIR/st-manager.sh"
+SHELL_RC="$HOME_DIR/.bashrc"
+AUTO_MARKER_BEGIN="# >>> st-terminal autostart >>>"
+AUTO_MARKER_END="# <<< st-terminal autostart <<<"
 
 mkdir -p "$APP_DIR" "$BIN_DIR"
 
@@ -21,9 +24,35 @@ EOF
 
 chmod +x "$BIN_DIR/st-terminal"
 
+if [ -f "$SHELL_RC" ]; then
+  if ! grep -Fq "$AUTO_MARKER_BEGIN" "$SHELL_RC"; then
+    cat >> "$SHELL_RC" <<EOF
+
+$AUTO_MARKER_BEGIN
+if [ -n "\$PS1" ] && [ -z "\${ST_TERMINAL_RUNNING:-}" ]; then
+  export ST_TERMINAL_RUNNING=1
+  st-terminal
+  unset ST_TERMINAL_RUNNING
+fi
+$AUTO_MARKER_END
+EOF
+  fi
+else
+  cat > "$SHELL_RC" <<EOF
+$AUTO_MARKER_BEGIN
+if [ -n "\$PS1" ] && [ -z "\${ST_TERMINAL_RUNNING:-}" ]; then
+  export ST_TERMINAL_RUNNING=1
+  st-terminal
+  unset ST_TERMINAL_RUNNING
+fi
+$AUTO_MARKER_END
+EOF
+fi
+
 echo
 echo "Install complete."
-echo "Run with:"
+echo "Termux will auto-open the manager menu on future launches."
+echo "You can also run it manually with:"
 echo "  st-terminal"
 echo
-echo "If command not found, restart Termux once."
+echo "Restart Termux once to activate autostart."
