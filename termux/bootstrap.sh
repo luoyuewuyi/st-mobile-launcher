@@ -1,7 +1,69 @@
 #!/data/data/com.termux/files/usr/bin/bash
 set -eu
 
-echo "请直接运行下面这条安装命令："
+HOME_DIR="${HOME:-/data/data/com.termux/files/home}"
+APP_DIR="$HOME_DIR/sillytavern-terminal"
+BIN_DIR="$HOME_DIR/.local/bin"
+SCRIPT_DIR="$APP_DIR/scripts"
+SCRIPT_ACTIVE_LINK="$APP_DIR/current-script.sh"
+MANAGER_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/st-manager.sh"
+SHELL_RC="$HOME_DIR/.bashrc"
+AUTO_MARKER_BEGIN="# >>> st-terminal autostart >>>"
+AUTO_MARKER_END="# <<< st-terminal autostart <<<"
+VERSION_ID="$(date +%Y%m%d%H%M%S)"
+VERSION_DIR="$SCRIPT_DIR/$VERSION_ID"
+MANAGER_FILE="$VERSION_DIR/st-manager.sh"
+
+mkdir -p "$APP_DIR" "$BIN_DIR" "$SCRIPT_DIR" "$VERSION_DIR"
+
+echo "== 酒馆终端管理器：一键安装 =="
 echo
-echo "curl -O https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/install-manager.sh && bash install-manager.sh"
+
+apt update
+apt full-upgrade -y || apt upgrade -y
+apt install -y git curl jq nodejs-lts which
+
+curl -fsSL "$MANAGER_URL" -o "$MANAGER_FILE"
+chmod +x "$MANAGER_FILE"
+ln -sfn "$MANAGER_FILE" "$SCRIPT_ACTIVE_LINK"
+
+cat > "$BIN_DIR/st-terminal" <<EOF
+#!/data/data/com.termux/files/usr/bin/bash
+if [ -L "$SCRIPT_ACTIVE_LINK" ]; then
+  exec "$SCRIPT_ACTIVE_LINK"
+else
+  exec "$MANAGER_FILE"
+fi
+EOF
+chmod +x "$BIN_DIR/st-terminal"
+
+if [ -f "$SHELL_RC" ]; then
+  if ! grep -Fq "$AUTO_MARKER_BEGIN" "$SHELL_RC"; then
+    cat >> "$SHELL_RC" <<EOF
+
+$AUTO_MARKER_BEGIN
+if [ -n "\$PS1" ] && [ -z "\${ST_TERMINAL_RUNNING:-}" ]; then
+  export ST_TERMINAL_RUNNING=1
+  st-terminal
+  unset ST_TERMINAL_RUNNING
+fi
+$AUTO_MARKER_END
+EOF
+  fi
+else
+  cat > "$SHELL_RC" <<EOF
+$AUTO_MARKER_BEGIN
+if [ -n "\$PS1" ] && [ -z "\${ST_TERMINAL_RUNNING:-}" ]; then
+  export ST_TERMINAL_RUNNING=1
+  st-terminal
+  unset ST_TERMINAL_RUNNING
+fi
+$AUTO_MARKER_END
+EOF
+fi
+
 echo
+echo "安装完成。"
+echo "正在进入菜单..."
+sleep 1
+exec "$MANAGER_FILE"

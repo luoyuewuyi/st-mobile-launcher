@@ -13,23 +13,83 @@ AUTO_MARKER_END="# <<< st-terminal autostart <<<"
 
 mkdir -p "$APP_DIR" "$BIN_DIR" "$SCRIPT_DIR"
 
-echo "== ST Terminal Manager: Install =="
+echo "== 酒馆终端管理器：安装程序 =="
 echo
 
-apt update
-apt install -y git curl jq nodejs-lts which
+curl_ok() {
+  command -v curl >/dev/null 2>&1 && curl --version >/dev/null 2>&1
+}
 
-REMOTE_VERSION="$(date +%Y%m%d%H%M%S)"
-VERSION_DIR="$SCRIPT_DIR/$REMOTE_VERSION"
+wget_ok() {
+  command -v wget >/dev/null 2>&1 && wget --version >/dev/null 2>&1
+}
+
+fix_env() {
+  echo "[修复] 正在尝试修复环境..."
+  apt update || true
+  apt full-upgrade -y || apt upgrade -y || true
+  apt install --reinstall -y \
+    ca-certificates \
+    openssl \
+    curl \
+    libcurl \
+    libngtcp2 \
+    libnghttp2 \
+    zlib || true
+  apt install -y git jq nodejs-lts which wget || true
+}
+
+download_file() {
+  local url="$1"
+  local out="$2"
+
+  if curl_ok; then
+    curl -fsSL "$url" -o "$out"
+    return 0
+  fi
+
+  if wget_ok; then
+    wget -qO "$out" "$url"
+    return 0
+  fi
+
+  fix_env
+
+  if curl_ok; then
+    curl -fsSL "$url" -o "$out"
+    return 0
+  fi
+
+  if wget_ok; then
+    wget -qO "$out" "$url"
+    return 0
+  fi
+
+  return 1
+}
+
+echo "[1/4] 检查基础环境..."
+apt update || true
+apt install -y git jq nodejs-lts which wget curl || true
+
+echo "[2/4] 下载主脚本..."
+VERSION_ID="$(date +%Y%m%d%H%M%S)"
+VERSION_DIR="$SCRIPT_DIR/$VERSION_ID"
 MANAGER_FILE="$VERSION_DIR/st-manager.sh"
 mkdir -p "$VERSION_DIR"
 
-echo "[1/3] Downloading manager..."
-curl -fsSL "$MANAGER_URL" -o "$MANAGER_FILE"
+if ! download_file "$MANAGER_URL" "$MANAGER_FILE"; then
+  echo
+  echo "安装失败：下载链路仍然不可用。"
+  echo "这通常说明当前 Termux 已严重损坏。"
+  echo "建议重装最新版 Termux 后再执行同一条安装命令。"
+  exit 1
+fi
+
 chmod +x "$MANAGER_FILE"
 ln -sfn "$MANAGER_FILE" "$SCRIPT_ACTIVE_LINK"
 
-echo "[2/3] Creating command entry..."
+echo "[3/4] 创建启动命令..."
 cat > "$BIN_DIR/st-terminal" <<EOF
 #!/data/data/com.termux/files/usr/bin/bash
 if [ -L "$SCRIPT_ACTIVE_LINK" ]; then
@@ -40,7 +100,7 @@ fi
 EOF
 chmod +x "$BIN_DIR/st-terminal"
 
-echo "[3/3] Enabling autostart..."
+echo "[4/4] 写入自动启动..."
 if [ -f "$SHELL_RC" ]; then
   if ! grep -Fq "$AUTO_MARKER_BEGIN" "$SHELL_RC"; then
     cat >> "$SHELL_RC" <<EOF
@@ -67,7 +127,7 @@ EOF
 fi
 
 echo
-echo "Install complete."
-echo "Starting manager now..."
+echo "安装完成。"
+echo "正在进入菜单..."
 sleep 1
 exec "$MANAGER_FILE"

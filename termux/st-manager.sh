@@ -16,7 +16,7 @@ REPO_URL="https://github.com/SillyTavern/SillyTavern.git"
 SCRIPT_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/st-manager.sh"
 TAGS_CACHE="$CACHE_DIR/tags.txt"
 DEFAULT_PORT="8000"
-SCRIPT_VERSION="2"
+SCRIPT_VERSION="3"
 
 mkdir -p "$APP_DIR" "$VERSIONS_DIR" "$LOG_DIR" "$SCRIPT_DIR" "$CACHE_DIR"
 
@@ -46,6 +46,44 @@ pause_any_key() {
   printf '\n按任意键返回...'
   IFS= read -r -n 1 _
   echo
+}
+
+curl_ok() {
+  command -v curl >/dev/null 2>&1 && curl --version >/dev/null 2>&1
+}
+
+wget_ok() {
+  command -v wget >/dev/null 2>&1 && wget --version >/dev/null 2>&1
+}
+
+download_file() {
+  local url="$1"
+  local out="$2"
+
+  if curl_ok; then
+    curl -fsSL "$url" -o "$out"
+    return 0
+  fi
+
+  if wget_ok; then
+    wget -qO "$out" "$url"
+    return 0
+  fi
+
+  apt update || true
+  apt install --reinstall -y curl openssl libcurl libngtcp2 libnghttp2 zlib wget || true
+
+  if curl_ok; then
+    curl -fsSL "$url" -o "$out"
+    return 0
+  fi
+
+  if wget_ok; then
+    wget -qO "$out" "$url"
+    return 0
+  fi
+
+  return 1
 }
 
 header() {
@@ -181,7 +219,11 @@ update_script() {
   echo "正在检查最新脚本..."
 
   local tmp_file="$APP_DIR/st-manager.remote.sh"
-  curl -fsSL "$SCRIPT_URL" -o "$tmp_file"
+  if ! download_file "$SCRIPT_URL" "$tmp_file"; then
+    echo "脚本下载失败。"
+    pause_wait
+    return
+  fi
 
   local current_file
   current_file="$(readlink -f "$SCRIPT_ACTIVE_LINK" 2>/dev/null || true)"
