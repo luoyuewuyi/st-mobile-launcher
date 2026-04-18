@@ -281,6 +281,7 @@ start_tavern() {
 
   ensure_current_link
   local log_file="$LOG_DIR/sillytavern-$ACTIVE_VERSION.log"
+  local tavern_url="http://127.0.0.1:$SERVER_PORT"
 
   if command -v termux-wake-lock >/dev/null 2>&1; then
     termux-wake-lock || true
@@ -300,8 +301,16 @@ start_tavern() {
     echo $! > "$SUPERVISOR_PID_FILE"
   )
 
+  sleep 3
+
+  if command -v termux-open-url >/dev/null 2>&1; then
+    termux-open-url "$tavern_url" >/dev/null 2>&1 || true
+  elif command -v am >/dev/null 2>&1; then
+    am start -a android.intent.action.VIEW -d "$tavern_url" >/dev/null 2>&1 || true
+  fi
+
   echo "酒馆已启动。"
-  echo "地址：http://127.0.0.1:$SERVER_PORT"
+  echo "地址：$tavern_url"
   pause_wait
 }
 
