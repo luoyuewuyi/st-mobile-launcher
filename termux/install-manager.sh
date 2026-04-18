@@ -11,6 +11,9 @@ BASH_RC="$HOME_DIR/.bashrc"
 BASH_PROFILE="$HOME_DIR/.bash_profile"
 PROFILE_FILE="$HOME_DIR/.profile"
 HOOK_LINE='command -v st-terminal >/dev/null 2>&1 && st-terminal'
+PATH_LINE='export PATH="$HOME/.local/bin:$PATH"'
+OLD_MARKER_BEGIN="# >>> st-terminal autostart >>>"
+OLD_MARKER_END="# <<< st-terminal autostart <<<"
 
 mkdir -p "$APP_DIR" "$BIN_DIR" "$SCRIPT_DIR"
 
@@ -41,6 +44,55 @@ ensure_hook_line() {
   else
     printf '%s\n' "$HOOK_LINE" > "$file"
   fi
+}
+
+ensure_path_line() {
+  local file="$1"
+  if [ -f "$file" ]; then
+    grep -Fq "$PATH_LINE" "$file" || printf '%s\n' "$PATH_LINE" >> "$file"
+  else
+    printf '%s\n' "$PATH_LINE" > "$file"
+  fi
+}
+
+clean_old_autostart() {
+  local file="$1"
+  [ -f "$file" ] || return 0
+
+  python - "$file" "$OLD_MARKER_BEGIN" "$OLD_MARKER_END" "$HOOK_LINE" <<'PY'
+import pathlib
+import sys
+
+path = pathlib.Path(sys.argv[1])
+begin = sys.argv[2]
+end = sys.argv[3]
+hook = sys.argv[4]
+text = path.read_text(encoding="utf-8", errors="ignore")
+
+while begin in text and end in text:
+    start = text.index(begin)
+    finish = text.index(end, start) + len(end)
+    tail = text[finish:]
+    if tail.startswith("\n"):
+        finish += 1
+    text = text[:start] + text[finish:]
+
+lines = []
+for raw_line in text.splitlines():
+    line = raw_line.strip()
+    if line == hook:
+        continue
+    if "st-terminal" in line and "autostart" in line:
+        continue
+    if "ST_TERMINAL_RUNNING" in line:
+        continue
+    if line == "st-terminal":
+        continue
+    lines.append(raw_line)
+
+cleaned = "\n".join(lines).rstrip() + "\n"
+path.write_text(cleaned, encoding="utf-8")
+PY
 }
 
 diagnose_env() {
@@ -194,6 +246,12 @@ EOF
 chmod +x "$BIN_DIR/st-terminal"
 
 say "[4/4] 写入自动启动..."
+clean_old_autostart "$BASH_RC"
+clean_old_autostart "$BASH_PROFILE"
+clean_old_autostart "$PROFILE_FILE"
+ensure_path_line "$BASH_RC"
+ensure_path_line "$BASH_PROFILE"
+ensure_path_line "$PROFILE_FILE"
 ensure_hook_line "$BASH_RC"
 ensure_hook_line "$BASH_PROFILE"
 ensure_hook_line "$PROFILE_FILE"
