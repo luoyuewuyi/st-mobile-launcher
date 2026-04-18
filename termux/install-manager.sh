@@ -7,7 +7,6 @@ BIN_DIR="$HOME_DIR/.local/bin"
 SCRIPT_DIR="$APP_DIR/scripts"
 SCRIPT_ACTIVE_LINK="$APP_DIR/current-script.sh"
 MANAGER_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/st-manager.sh"
-VERSION_META_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/version.txt"
 SHELL_RC="$HOME_DIR/.bashrc"
 AUTO_MARKER_BEGIN="# >>> st-terminal autostart >>>"
 AUTO_MARKER_END="# <<< st-terminal autostart <<<"
@@ -20,7 +19,7 @@ echo
 apt update
 apt install -y git curl jq nodejs-lts which
 
-REMOTE_VERSION="$(curl -fsSL "$VERSION_META_URL" 2>/dev/null || echo 1)"
+REMOTE_VERSION="$(date +%Y%m%d%H%M%S)"
 VERSION_DIR="$SCRIPT_DIR/$REMOTE_VERSION"
 MANAGER_FILE="$VERSION_DIR/st-manager.sh"
 mkdir -p "$VERSION_DIR"

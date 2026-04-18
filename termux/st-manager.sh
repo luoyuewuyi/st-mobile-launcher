@@ -14,7 +14,6 @@ ACTIVE_LINK="$APP_DIR/current"
 SCRIPT_ACTIVE_LINK="$APP_DIR/current-script.sh"
 REPO_URL="https://github.com/SillyTavern/SillyTavern.git"
 SCRIPT_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/st-manager.sh"
-VERSION_META_URL="https://raw.githubusercontent.com/luoyuewuyi/st-mobile-launcher/master/termux/version.txt"
 TAGS_CACHE="$CACHE_DIR/tags.txt"
 DEFAULT_PORT="8000"
 SCRIPT_VERSION="2"
@@ -181,34 +180,40 @@ update_script() {
   header
   echo "正在检查最新脚本..."
 
+  local tmp_file="$APP_DIR/st-manager.remote.sh"
+  curl -fsSL "$SCRIPT_URL" -o "$tmp_file"
+
+  local current_file
+  current_file="$(readlink -f "$SCRIPT_ACTIVE_LINK" 2>/dev/null || true)"
+  if [ -z "$current_file" ] || [ ! -f "$current_file" ]; then
+    current_file="$0"
+  fi
+
+  if cmp -s "$tmp_file" "$current_file"; then
+    rm -f "$tmp_file"
+    echo "当前脚本已经是最新版本。"
+    pause_wait
+    return
+  fi
+
   local remote_version
-  remote_version="$(curl -fsSL "$VERSION_META_URL" 2>/dev/null || true)"
-  if [ -z "$remote_version" ]; then
-    echo "获取脚本版本失败。"
-    pause_wait
-    return
-  fi
-
-  if [ "$remote_version" = "$ACTIVE_SCRIPT_VERSION" ]; then
-    echo "当前脚本已经是最新版本：$remote_version"
-    pause_wait
-    return
-  fi
-
+  remote_version="$(date +%Y%m%d%H%M%S)"
   local target_dir="$SCRIPT_DIR/$remote_version"
   local target_file="$target_dir/st-manager.sh"
   mkdir -p "$target_dir"
 
-  curl -fsSL "$SCRIPT_URL" -o "$target_file"
+  mv "$tmp_file" "$target_file"
   chmod +x "$target_file"
   ln -sfn "$target_file" "$SCRIPT_ACTIVE_LINK"
 
   ACTIVE_SCRIPT_VERSION="$remote_version"
   keep_latest_three_script_dirs
   save_state
+
   echo "脚本已更新到：$remote_version"
-  echo "旧脚本最多保留 3 个。"
-  pause_wait
+  echo "正在自动切换到新脚本..."
+  sleep 1
+  exec "$SCRIPT_ACTIVE_LINK"
 }
 
 start_tavern() {
@@ -276,6 +281,23 @@ show_log() {
   pause_any_key
 }
 
+change_port() {
+  header
+  printf '输入新端口（当前 %s）：' "$SERVER_PORT"
+  read -r new_port
+
+  if ! echo "$new_port" | grep -Eq '^[0-9]+$'; then
+    echo "端口无效。"
+    pause_wait
+    return
+  fi
+
+  SERVER_PORT="$new_port"
+  save_state
+  echo "端口已修改为：$SERVER_PORT"
+  pause_wait
+}
+
 main_menu() {
   while true; do
     header
@@ -285,6 +307,7 @@ main_menu() {
 3. 更新酒馆
 4. 更新脚本
 5. 查看日志
+6. 修改端口
 0. 退出
 EOF
     echo
@@ -297,6 +320,7 @@ EOF
       3) update_tavern ;;
       4) update_script ;;
       5) show_log ;;
+      6) change_port ;;
       0) exit 0 ;;
       *) echo "没有这个选项。"; pause_wait ;;
     esac
